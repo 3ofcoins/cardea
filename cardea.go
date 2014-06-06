@@ -21,9 +21,10 @@ var (
 )
 
 type Config struct {
-	Secret        string
-	Cookie        string
-	ExpirationSec uint64
+	Secret           string
+	Cookie           string
+	ExpirationSec    uint64
+	ConflateWebkitUA bool
 }
 
 type CheckResult struct {
@@ -99,6 +100,7 @@ func New(secret string) *Config {
 	return &Config{secret,
 		DEFAULT_COOKIE_NAME,
 		DEFAULT_EXPIRATION_SEC,
+		false,
 	}
 }
 
@@ -119,6 +121,10 @@ func (c *Config) CheckCookie(cookie string, ua string) (result *CheckResult, err
 	}
 
 	result = &CheckResult{user, groups, ts, since(time.Unix(int64(ts), 0)), false}
+
+	if c.ConflateWebkitUA && strings.Contains(ua, "AppleWebKit") {
+		ua = "StupidAppleWebkitHacksGRRR"
+	}
 
 	computed_hmac := HMAC(c.Secret, user, groups, ts, ua)
 
