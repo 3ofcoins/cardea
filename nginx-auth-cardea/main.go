@@ -31,7 +31,6 @@ error_page 403 =301 $cardea_server?reason=$cardea_nonce&ref=$scheme://$host$requ
 auth_request_set $cardea_user $upstream_http_x_cardea_user;
 auth_request_set $cardea_roles $upstream_http_x_cardea_roles;
 auth_request_set $cardea_nonce $upstream_http_x_cardea_nonce;
-auth_request_set $remote_user $upstream_http_x_cardea_user;
 `
 
 type nginxConfigParameters struct {
