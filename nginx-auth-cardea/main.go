@@ -13,14 +13,9 @@ var cfg cardea.Config
 func main() {
 	default_expiration_sec := cardea.DEFAULT_EXPIRATION_SEC
 	default_cookie_name := cardea.DEFAULT_COOKIE_NAME
-	default_header_prefix := cardea.DEFAULT_HEADER_PREFIX
 
 	if env := os.Getenv("CARDEA_COOKIE"); env != "" {
 		default_cookie_name = env
-	}
-
-	if env := os.Getenv("CARDEA_HEADER_PREFIX"); env != "" {
-		default_header_prefix = env
 	}
 
 	if env := os.Getenv("CARDEA_EXPIRATION_SEC"); env != "" {
@@ -37,8 +32,6 @@ func main() {
 		"Name of Cardea's cookie")
 	flag.Uint64Var(&cfg.ExpirationSec, "expiration-sec", default_expiration_sec,
 		"Cookie older than this many seconds will be considered expired")
-	flag.StringVar(&cfg.HeaderPrefix, "header-prefix", default_header_prefix,
-		"Cardea's header prefix")
 	listen := flag.String("listen", ":8080", "ip:port to listen on")
 	flag.Parse()
 

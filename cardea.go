@@ -18,14 +18,12 @@ var (
 	COOKIE_RX              = regexp.MustCompile("^\\s*([a-zA-Z0-9_-]+),([a-zA-Z0-9_-]+),(\\d+),([0-9a-f]+)\\s*$")
 	DEFAULT_COOKIE_NAME    = "ca"
 	DEFAULT_EXPIRATION_SEC = uint64(36 * 3600)
-	DEFAULT_HEADER_PREFIX  = "X-Cardea"
 )
 
 type Config struct {
 	Secret        string
 	Cookie        string
 	ExpirationSec uint64
-	HeaderPrefix  string
 }
 
 type CheckResult struct {
@@ -101,7 +99,6 @@ func New(secret string) *Config {
 	return &Config{secret,
 		DEFAULT_COOKIE_NAME,
 		DEFAULT_EXPIRATION_SEC,
-		DEFAULT_HEADER_PREFIX,
 	}
 }
 
@@ -148,21 +145,17 @@ func (c *Config) CheckRequest(r *http.Request) (result *CheckResult, err error) 
 	return c.CheckCookie(_cookie.Value, strings.Join(r.Header["User-Agent"], "\n"))
 }
 
-func (c *Config) headerName(suffix string) string {
-	return strings.Join([]string{c.HeaderPrefix, suffix}, "-")
-}
-
 func (c *Config) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hdr := w.Header()
 
 	if res, err := c.CheckRequest(r); err != nil {
-		log.Printf("%v DENY %s (%s)", r.Header[c.headerName("RequestInfo")], res, err)
+		log.Printf("%v DENY %s (%s)", r.Header["X-Cardea-RequestInfo"], res, err)
 		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte("Denied\n"))
 	} else {
-		log.Printf("%v ALLOW %s", r.Header[c.headerName("RequestInfo")], res)
-		hdr[c.headerName("User")] = []string{res.User}
-		hdr[c.headerName("Groups")] = []string{res.Groups}
+		log.Printf("%v ALLOW %s", r.Header["X-Cardea-RequestInfo"], res)
+		hdr["X-Cardea-User"] = []string{res.User}
+		hdr["X-Cardea-Groups"] = []string{res.Groups}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK\n"))
 	}
