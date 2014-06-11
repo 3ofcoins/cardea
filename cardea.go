@@ -155,11 +155,11 @@ func (c *Config) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	hdr := w.Header()
 
 	if res, err := c.CheckRequest(r); err != nil {
-		log.Printf("%v DENY %s (%s)", r.Header["X-Cardea-RequestInfo"], res, err)
+		log.Printf("%v DENY %s (%s)", r.Header["X-Cardea-Requestinfo"], res, err)
 		w.WriteHeader(http.StatusForbidden)
 		w.Write([]byte("Denied\n"))
 	} else {
-		log.Printf("%v ALLOW %s", r.Header["X-Cardea-RequestInfo"], res)
+		log.Printf("%v ALLOW %s", r.Header["X-Cardea-Requestinfo"], res)
 		hdr["X-Cardea-User"] = []string{res.User}
 		hdr["X-Cardea-Groups"] = []string{res.Groups}
 		w.WriteHeader(http.StatusOK)
