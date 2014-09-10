@@ -15,6 +15,7 @@ import "strings"
 import "time"
 
 var (
+	// Cookie format: urlencode( base64(username) "," base64(groups) "," timestamp (time_t) "," HMAC )
 	COOKIE_RX              = regexp.MustCompile("^\\s*([a-zA-Z0-9_-]+),([a-zA-Z0-9_-]+),(\\d+),([0-9a-f]+)\\s*$")
 	DEFAULT_COOKIE_NAME    = "ca"
 	DEFAULT_EXPIRATION_SEC = uint64(36 * 3600)
