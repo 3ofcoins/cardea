@@ -2,6 +2,7 @@ package cardea
 
 import "regexp"
 
+
 var TOKEN_RX = regexp.MustCompile("\\A[\\t-\\n\\f-\\r ]*(?P<USERNAME>[\\--9A-Z_a-z]+)(?P<PAYLOAD>,(?P<LEGACY_GROUPS>[\\--9A-Z_a-z]+)?,(?P<LEGACY_TIMESTAMP>[0-9]+),|:(?:(?P<FORMAT>[0-9A-Z_a-z]+)\\?)?(?P<QUERY>[^#]+)#)(?P<HMAC>[0-9a-f]+)[\\t-\\n\\f-\\r ]*(?-m:$)")
 
 const (
@@ -14,4 +15,3 @@ const (
   TOKEN_RX_QUERY = iota
   TOKEN_RX_HMAC = iota
 )
-
