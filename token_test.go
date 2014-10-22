@@ -3,8 +3,12 @@ package cardea
 import "testing"
 import . "github.com/smartystreets/goconvey/convey"
 
+import "crypto/hmac"
+import "crypto/sha256"
 import "encoding/hex"
-import "regexp"
+import "encoding/base64"
+import "fmt"
+import "strings"
 
 func force_unb64(enc string) string {
 	if raw, err := unb64(enc); err == nil {
@@ -22,74 +26,171 @@ func force_unhex(str string) []byte {
 	}
 }
 
-func TestParseCookie(t *testing.T) {
+func computeHMAC(secret []byte, data string) string {
+	h := hmac.New(sha256.New, secret)
+	h.Write([]byte(data))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+func basic_auth(s string) string {
+	return fmt.Sprintf("Basic %s", base64.StdEncoding.EncodeToString([]byte(s)))
+}
+
+func TestToken(t *testing.T) {
+	var secret = []byte("SWORDFISH")
+	var hmac_extra = "For instance, User-Agent header"
 	var token *Token
 	var err error
 
-	Convey("Defensive cookie parsing", t, func() {
-		Convey("Well-formed cookie", func() {
-			token, err = ParseCookie("bWFjaWVq%2CYWRtaW4%2C1396349947%2C385291ccf3679233c2480c3a011f0fe02f7a91ba2e4d28d8023f35ac56e05dec")
+	signed_with_glue := func(glue, unsigned string) string {
+		return strings.Join(
+			[]string{
+				unsigned,
+				computeHMAC(
+					secret,
+					strings.Join([]string{unsigned, b64(hmac_extra)}, glue))},
+			glue)
+	}
+
+	Convey("Token deserialization", t, func() {
+		Convey("Malformed cookie", func() {
+			token, err = DeserializeToken(secret, hmac_extra,
+				"LOREM IPSUM DOLOR SIT AMET")
+			So(err, ShouldNotBeNil)
+			So(token, ShouldBeNil)
+		})
+
+		Convey("Legacy format", func() {
+			Convey("HMAC mismatch", func() {
+				token, err = DeserializeToken(secret, hmac_extra,
+					"bWFjaWVq,YWRtaW4,1396349947,385291ccf3679233c2480c3a011f0fe02f7a91ba2e4d28d8023f35ac56e05dec")
+				So(err, ShouldNotBeNil)
+				So(token, ShouldBeNil)
+			})
+
+			deserialize := func(serialized string) (*Token, error) {
+				return DeserializeToken(
+					secret,
+					hmac_extra,
+					signed_with_glue(",", serialized))
+			}
+
+			Convey("Well-formed cookie", func() {
+				token, err = deserialize("bWFjaWVq,YWRtaW4,1396349947")
+				So(err, ShouldBeNil)
+				So(token.User, ShouldEqual, "maciej")
+				So(token.Groups, ShouldResemble, []string{"admin"})
+				So(token.Timestamp.Unix(), ShouldEqual, 1396349947)
+			})
+
+			Convey("Well-formed cookie, multiple groups", func() {
+				token, err = deserialize("bWFjaWVq,Zm9vLGJhcixiYXoscXV1eA,1396349947")
+				So(err, ShouldBeNil)
+				So(token.User, ShouldEqual, "maciej")
+				So(token.Groups, ShouldResemble, []string{"foo", "bar", "baz", "quux"})
+				So(token.Timestamp.Unix(), ShouldEqual, 1396349947)
+			})
+
+			Convey("Malformed Base64 in username", func() {
+				token, err = deserialize("b-WFjaWVq,YWRtaW4,1396349947")
+				So(err, ShouldNotBeNil)
+				So(token, ShouldBeNil)
+			})
+
+			Convey("Malformed Base64 in groups", func() {
+				token, err = deserialize("bWFjaWVq,YW-RtaW4,1396349947")
+				So(err, ShouldNotBeNil)
+				So(token, ShouldBeNil)
+			})
+
+			Convey("Malformed timestamp", func() {
+				token, err = deserialize("bWFjaWVq,YWRtaW4,99999999999999999999")
+				So(err, ShouldNotBeNil)
+				So(token, ShouldBeNil)
+			})
+		})
+
+		Convey("Cardea format", func() {
+			Convey("HMAC mismatch", func() {
+				token, err = DeserializeToken(secret, hmac_extra,
+					"maciej:g=admin&t=1396349947#385291ccf3679233c2480c3a011f0fe02f7a91ba2e4d28d8023f35ac56e05dec")
+				So(err, ShouldNotBeNil)
+				So(token, ShouldBeNil)
+			})
+
+			deserialize := func(serialized string) (*Token, error) {
+				return DeserializeToken(
+					secret,
+					hmac_extra,
+					signed_with_glue("#", serialized))
+			}
+
+			Convey("Well-formed cookie", func() {
+				token, err = deserialize("maciej:g=admin&t=1396349947")
+				So(err, ShouldBeNil)
+				So(token.User, ShouldEqual, "maciej")
+				So(token.Groups, ShouldResemble, []string{"admin"})
+				So(token.Timestamp.Unix(), ShouldEqual, 1396349947)
+			})
+
+			Convey("Well-formed cookie, multiple groups", func() {
+				token, err = deserialize("maciej:g=foo&g=bar&g=baz&g=quux&t=1396349947")
+				So(err, ShouldBeNil)
+				So(token.User, ShouldEqual, "maciej")
+				So(token.Groups, ShouldResemble, []string{"foo", "bar", "baz", "quux"})
+				So(token.Timestamp.Unix(), ShouldEqual, 1396349947)
+			})
+
+			Convey("Malformed query string", func() {
+				token, err = deserialize("maciej:q=%X8")
+				So(err, ShouldNotBeNil)
+				So(token, ShouldBeNil)
+			})
+
+			Convey("Malformed timestamp", func() {
+				token, err = deserialize("maciej:t=dupa")
+				So(err, ShouldNotBeNil)
+				So(token, ShouldBeNil)
+			})
+
+			Convey("Multiple timestamps", func() {
+				token, err = deserialize("maciej:t=1&t=2")
+				So(err, ShouldNotBeNil)
+				So(token, ShouldBeNil)
+			})
+		})
+	})
+
+	Convey("Cookie parsing", t, func() {
+		Convey("Well-escaped cookie", func() {
+			token, err := ParseCookie(secret, hmac_extra, signed_with_glue("#", "maciej:t=1396349947"))
 			So(err, ShouldBeNil)
 			So(token.User, ShouldEqual, "maciej")
-			So(token.Groups, ShouldEqual, "admin")
-			So(token.Timestamp.Unix(), ShouldEqual, 1396349947)
-			So(token.HMAC, ShouldResemble, force_unhex("385291ccf3679233c2480c3a011f0fe02f7a91ba2e4d28d8023f35ac56e05dec"))
 		})
-
-		Convey("Malformed URL-encoding of cookie content", func() {
-			token, err = ParseCookie("bWFjaWVq%2CYWRtaW4%2X1396349947%2C385291ccf3679233c2480c3a011f0fe02f7a91ba2e4d28d8023f35ac56e05dec")
+		Convey("Malformed cookie", func() {
+			token, err := ParseCookie(secret, hmac_extra, signed_with_glue("#", "maciej:t=1396349947%2X"))
 			So(err, ShouldNotBeNil)
 			So(token, ShouldBeNil)
 		})
+	})
 
-		Convey("Cookie doesn't match COOKIE_RX", func() {
-			token, err = ParseCookie("dupa.8")
+	Convey("Authorization header parsing", t, func() {
+		Convey("Well-escaped header", func() {
+			token, err := ParseAuthorization(secret, hmac_extra, basic_auth(signed_with_glue("#", "maciej:t=1396349947")))
+			So(err, ShouldBeNil)
+			So(token.User, ShouldEqual, "maciej")
+		})
+		Convey("Not Basic auth", func() {
+			// Change "Basic …" to "NotBasic …"
+			token, err := ParseAuthorization(secret, hmac_extra, "Not"+basic_auth(signed_with_glue("#", "maciej:t=1396349947")))
 			So(err, ShouldNotBeNil)
 			So(token, ShouldBeNil)
 		})
-
-		Convey("Malformed Base64 in username", func() {
-			token, err = ParseCookie("b-WFjaWVq%2CYWRtaW4%2C1396349947%2C385291ccf3679233c2480c3a011f0fe02f7a91ba2e4d28d8023f35ac56e05dec")
+		Convey("Malformed payload", func() {
+			// Malform base64 by adding invalid padding
+			token, err := ParseAuthorization(secret, hmac_extra, basic_auth(signed_with_glue("#", "maciej:t=1396349947"))+"==")
 			So(err, ShouldNotBeNil)
-			So(token.User, ShouldEqual, "")
-			So(token.Groups, ShouldEqual, "")
-			So(token.Timestamp.IsZero(), ShouldBeTrue)
-			So(len(token.HMAC), ShouldEqual, 0)
-		})
-
-		Convey("Malformed Base64 in groups", func() {
-			token, err = ParseCookie("bWFjaWVq%2CYW-RtaW4%2C1396349947%2C385291ccf3679233c2480c3a011f0fe02f7a91ba2e4d28d8023f35ac56e05dec")
-			So(err, ShouldNotBeNil)
-			So(token.User, ShouldEqual, "maciej")
-			So(token.Groups, ShouldEqual, "")
-			So(token.Timestamp.IsZero(), ShouldBeTrue)
-			So(len(token.HMAC), ShouldEqual, 0)
-		})
-
-		Convey("Malformed timestamp", func() {
-			token, err = ParseCookie("bWFjaWVq%2CYWRtaW4%2C99999999999999999999%2C385291ccf3679233c2480c3a011f0fe02f7a91ba2e4d28d8023f35ac56e05dec")
-			So(err, ShouldNotBeNil)
-			So(token.User, ShouldEqual, "maciej")
-			So(token.Groups, ShouldEqual, "admin")
-			So(token.Timestamp.IsZero(), ShouldBeTrue)
-			So(len(token.HMAC), ShouldEqual, 0)
-		})
-
-		Convey("Malformed HMAC hex", func() {
-			// malformed hmac hex is normally not possible because it will be
-			// caught earlier by regex - we temporarily override regexp to make
-			// sure that if somebody can think of invalid hex consisting of only
-			// hex digits, it will get caught.
-			orig_cookie_rx := COOKIE_RX
-			defer func() { COOKIE_RX = orig_cookie_rx }()
-			COOKIE_RX = regexp.MustCompile("^\\s*([a-zA-Z0-9_-]+),([a-zA-Z0-9_-]+),(\\d+),(.*)\\s*$")
-
-			token, err = ParseCookie("bWFjaWVq%2CYWRtaW4%2C1396349947%2Cdupa")
-			So(err, ShouldNotBeNil)
-			So(token.User, ShouldEqual, "maciej")
-			So(token.Groups, ShouldEqual, "admin")
-			So(token.Timestamp.Unix(), ShouldEqual, 1396349947)
-			So(len(token.HMAC), ShouldEqual, 0)
+			So(token, ShouldBeNil)
 		})
 	})
 }
@@ -115,6 +216,18 @@ func TestBase64(t *testing.T) {
 		Convey("Invalid base64 returns an error on decode", func() {
 			_, err := unb64("dupa.8")
 			So(err, ShouldNotBeNil)
+		})
+	})
+}
+
+// Some code paths can't be tested with outside calls (e.g. malformed
+// hex-encoded received HMAC won't ever be seen by check_hmac, as
+// regexp will reject it earlier on). Let's test the lower layers, and
+// keep coverage green.
+func TestCoverage(t *testing.T) {
+	Convey("Cover inaccessible code paths", t, func() {
+		Convey("Malformed received HMAC hex", func() {
+			So(check_hmac([]byte("SWORDFISH"), "xyzzy", "whatever"), ShouldBeFalse)
 		})
 	})
 }

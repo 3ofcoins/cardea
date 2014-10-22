@@ -1,5 +1,7 @@
 package cardea
 
+//go:generate make generate
+
 import "errors"
 import "log"
 import "net/http"
@@ -11,29 +13,19 @@ var (
 )
 
 type Config struct {
-	Secret           string
-	Cookie           string
-	ExpirationSec    uint64
-	ConflateWebkitUA bool
+	Secret        []byte
+	Cookie        string
+	ExpirationSec uint64
 }
 
 func NewConfig(secret string) *Config {
-	return &Config{secret,
+	return &Config{[]byte(secret),
 		DEFAULT_COOKIE_NAME,
 		DEFAULT_EXPIRATION_SEC,
-		false,
 	}
 }
 
 func (c *Config) CheckToken(t *Token, ua string) (err error) {
-	if c.ConflateWebkitUA && strings.Contains(ua, "AppleWebKit") {
-		ua = "StupidAppleWebkitHacksGRRR"
-	}
-
-	if !t.IsValid(c.Secret, ua) {
-		return errors.New("HMAC mismatch")
-	}
-
 	if uint64(t.Age().Seconds()) > c.ExpirationSec {
 		return errors.New("Expired cookie")
 	}
@@ -42,8 +34,7 @@ func (c *Config) CheckToken(t *Token, ua string) (err error) {
 }
 
 func (c *Config) CheckCookie(cookie string, ua string) (t *Token, err error) {
-	// user, groups, ts, received_hmac, err := ParseCookie(cookie)
-	t, err = ParseCookie(cookie)
+	t, err = ParseCookie(c.Secret, ua, cookie)
 	if err != nil {
 		return
 	}
@@ -71,7 +62,7 @@ func (c *Config) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	} else {
 		log.Printf("%v ALLOW %s", r.Header["X-Cardea-Requestinfo"], t)
 		hdr["X-Cardea-User"] = []string{t.User}
-		hdr["X-Cardea-Groups"] = []string{t.Groups}
+		hdr["X-Cardea-Groups"] = t.Values["g"]
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK\n"))
 	}
