@@ -97,7 +97,7 @@ func main() {
 		if qp["handler"] != nil {
 			params.HandlerURL = qp["handler"][0]
 		} else {
-			u := &url.URL{"http", "", nil, r.Host, "", "", ""}
+			u := &url.URL{Scheme: "http", Host: r.Host}
 			if r.Header["X-Forwarded-Proto"] != nil {
 				u.Scheme = r.Header["X-Forwarded-Proto"][0]
 			}
