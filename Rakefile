@@ -33,25 +33,61 @@ if ENV['CI']
   Rake::Task[:clean].invoke
 end
 
+desc 'Get prerequisite libraries and such'
+task :prereqs do
+  get_cmd = ['go get -t -v']
+  get_cmd << '-u' if ENV['UPDATE']
+  get_cmd.concat(GO_DIRS)
+  get_cmd.concat(GO_TOOLS)
+  sh get_cmd.join(' ')
+
+  gobin = `go env GOPATH`
+    .strip
+    .split(':')
+    .map { |dir| File.join(dir, 'bin') }
+    .select { |dir| File.directory?(dir) }
+  ENV['PATH'] = "#{gobin.join(':')}:#{ENV['PATH']}"
+end
+
+### Code Generation
+###################
+
+GENERATED = FileList.new
+
+def generate_file(*args, &block)
+  GENERATED << file(*args, &block)
+end
+
+generate_file 'regexp.go' => 'script/compose_regexp.go' do
+  sh 'go run script/compose_regexp.go > regexp.go'
+end
+
+desc 'Generate secondary files'
+task :generate => :prereqs
+task :generate => GENERATED do
+  sh "git diff --name-status --exit-code #{GENERATED}"
+end
+
+### Build Targets
+#################
+
+TARGETS = FileList.new
+
+def build_file(*args, &block)
+  TARGETS << file(*args, &block)
+end
+
+build_file 'target/nginx-auth-cardea' => FileList['*.go', 'nginx-auth-cardea/*.go'] do |t|
+  sh "go build -o #{t} ./nginx-auth-cardea"
+end
+
+desc 'Build targets'
+task :build => [:prereqs, :generate]
+task :build => TARGETS
+
 namespace :go do
-  desc 'Get Go dependencies'
-  task :get do
-    get_cmd = ['go get -t -v']
-    get_cmd << '-u' if ENV['UPDATE']
-    get_cmd.concat(GO_DIRS)
-    get_cmd.concat(GO_TOOLS)
-    sh get_cmd.join(' ')
-
-    gobin = `go env GOPATH`
-      .strip
-      .split(':')
-      .map { |dir| File.join(dir, 'bin') }
-      .select { |dir| File.directory?(dir) }
-    ENV['PATH'] = "#{gobin.join(':')}:#{ENV['PATH']}"
-  end
-
   desc 'Run GoConvey tests'
-  task :convey => :get do
+  task :convey => :prereqs do
     test_cmd = ['go test']
     test_cmd << '-v' if verbose?
     test_cmd << '-coverprofile=target/report/gocov.txt' if cov?
@@ -61,7 +97,7 @@ namespace :go do
   end
 
   desc 'Vet the Go files'
-  task :vet => :get do
+  task :vet => :prereqs do
     vet_cmd = ['go tool vet']
     vet_cmd << '-v' if verbose?
     vet_cmd.concat(GO_DIRS)
@@ -99,22 +135,10 @@ namespace :ruby do
   task :report => [:test]
 end
 
-namespace :build do
-  desc 'Build the nginx-auth-cardea handler'
-  task 'nginx-auth-cardea' do
-    Dir.chdir 'nginx-auth-cardea' do
-      sh "go build#{' -v' if verbose?}"
-    end
-  end
-end
-
-desc 'Build everything'
-task :build => ['build:nginx-auth-cardea']
-
 desc 'Run all tests'
 task :test => ['go:test', 'ruby:test']
 
 desc 'Generate all reports'
 task :report => ['go:report', 'ruby:report']
 
-task :default => :report
+task :default => [:build, :test, :report]
