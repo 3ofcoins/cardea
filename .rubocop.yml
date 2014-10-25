@@ -1,0 +1,15 @@
+AllCops:
+  Include:
+    - '**/Rakefile'
+    - '**.gemspec'
+    - '**/config.ru'
+    - '.simplecov'
+
+Style/Documentation:
+  Enabled: false
+
+Style/ClassAndModuleChildren:
+  Enabled: false
+
+Style/TrailingComma:
+  Enabled: false
