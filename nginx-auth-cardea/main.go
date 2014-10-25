@@ -54,20 +54,20 @@ func main() {
 		}
 	}
 
-	flag.StringVar(&cfg.Secret, "secret", os.Getenv("CARDEA_SECRET"),
+	secret := flag.String("secret", os.Getenv("CARDEA_SECRET"),
 		"(not recommended, use CARDEA_SECRET environment variable instead if possible)")
 	flag.StringVar(&cfg.Cookie, "cookie", default_cookie_name,
 		"Name of Cardea's cookie")
 	flag.Uint64Var(&cfg.ExpirationSec, "expiration-sec", default_expiration_sec,
 		"Cookie older than this many seconds will be considered expired")
 	listen := flag.String("listen", ":8080", "ip:port to listen on")
-	flag.BoolVar(&cfg.ConflateWebkitUA, "conflate-webkit-ua", false,
-		"Conflate WebKit user-agents (for legacy compatibility)")
 	flag.Parse()
 
-	if cfg.Secret == "" {
+	if secret == nil || *secret == "" {
 		log.Fatal("Need a secret to start; set CARDEA_SECRET environment variable")
 	}
+
+	cfg.Secret = []byte(*secret)
 
 	log.Println("Starting httpd on", *listen)
 
