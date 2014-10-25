@@ -1,10 +1,11 @@
 require 'bundler/setup'
 
 # require 'bundler/gem_tasks'
+require 'rake/clean'
 require 'rake/testtask'
 require 'rubocop/rake_task'
 
-# rubocop:disable Style/HashSyntax
+# rubocop:disable Style/HashSyntax, Metrics/LineLength
 
 GO_DIRS = `git ls-files -z`
   .split("\0")
@@ -15,16 +16,22 @@ GO_DIRS = `git ls-files -z`
 GO_TOOLS = %w(cover vet)
   .map { |cmd| "code.google.com/p/go.tools/cmd/#{cmd}" }
 
-if ENV['CI']
-  ENV['COVERAGE'] = '1'
-  rm_rf 'report'
-end
-
 def cov?
   ENV['COVERAGE']
 end
 
-mkdir 'report'
+def verbose?
+  ENV['VERBOSE']
+end
+
+task :clean do
+  sh 'git clean -fdx target/'
+end
+
+if ENV['CI']
+  ENV['COVERAGE'] = '1'
+  Rake::Task[:clean].invoke
+end
 
 namespace :go do
   desc 'Get Go dependencies'
@@ -46,17 +53,17 @@ namespace :go do
   desc 'Run GoConvey tests'
   task :convey => :get do
     test_cmd = ['go test']
-    test_cmd << '-v' if ENV['VERBOSE']
-    test_cmd << '-coverprofile=report/gocov.txt' if cov?
+    test_cmd << '-v' if verbose?
+    test_cmd << '-coverprofile=target/report/gocov.txt' if cov?
     sh test_cmd.join(' ')
 
-    sh 'go tool cover -func=report/gocov.txt' if cov?
+    sh 'go tool cover -func=target/report/gocov.txt' if cov?
   end
 
   desc 'Vet the Go files'
   task :vet => :get do
     vet_cmd = ['go tool vet']
-    vet_cmd << '-v' if ENV['VERBOSE']
+    vet_cmd << '-v' if verbose?
     vet_cmd.concat(GO_DIRS)
     sh vet_cmd.join(' ')
   end
@@ -66,7 +73,7 @@ namespace :go do
 
   desc 'Generate Go reports'
   task :report => [:test] do
-    sh 'go tool cover -html=report/gocov.txt -o report/gocov.html' if cov?
+    sh 'go tool cover -html=target/report/gocov.txt -o target/report/gocov.html' if cov?
   end
 end
 
@@ -75,13 +82,13 @@ namespace :ruby do
 
   Rake::TestTask.new :unit do |t|
     t.pattern = 'spec/unit/**_spec.rb'
-    t.verbose = ENV['VERBOSE']
-    t.options = '--command-name=spec'
+    t.verbose = verbose?
+    t.options = '--command-name=unit'
   end
 
   Rake::TestTask.new :integration do |t|
     t.pattern = 'spec/integration/**_spec.rb'
-    t.verbose = ENV['VERBOSE']
+    t.verbose = verbose?
     t.options = '--command-name=integration'
   end
 
@@ -92,23 +99,22 @@ namespace :ruby do
   task :report => [:test]
 end
 
-file 'report/index.html' do |t|
-  File.write t.to_s, <<EOF
-<!DOCTYPE html>
-<meta charset="utf-8">
-<title>Cardea Coverage</title>
-<h1>Cardea Coverage Reports</h1>
-<ul>
-  <li><a href="gocov.html">GoCov</a> (Go)</li>
-  <li><a href="simplecov/index.html">SimpleCov</a> (Ruby)</li>
-</ul>
-EOF
+namespace :build do
+  desc 'Build the nginx-auth-cardea handler'
+  task 'nginx-auth-cardea' do
+    Dir.chdir 'nginx-auth-cardea' do
+      sh "go build#{' -v' if verbose?}"
+    end
+  end
 end
+
+desc 'Build everything'
+task :build => ['build:nginx-auth-cardea']
 
 desc 'Run all tests'
 task :test => ['go:test', 'ruby:test']
 
 desc 'Generate all reports'
-task :report => ['go:report', 'ruby:report', 'report/index.html']
+task :report => ['go:report', 'ruby:report']
 
 task :default => :report

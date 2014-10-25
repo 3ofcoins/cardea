@@ -1,3 +1,5 @@
 /tmp
 /nginx-auth-cardea/nginx-auth-cardea
 /Gemfile.lock
+/target/**
+!/target/report/index.html
