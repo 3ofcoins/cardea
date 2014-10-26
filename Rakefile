@@ -117,15 +117,17 @@ namespace :ruby do
   RuboCop::RakeTask.new
 
   Rake::TestTask.new :unit do |t|
-    t.pattern = 'spec/unit/**_spec.rb'
+    t.pattern = 'test/spec/**_spec.rb'
+    t.options = '--command-name=spec'
+    t.libs = %w(lib test/lib)
     t.verbose = verbose?
-    t.options = '--command-name=unit'
   end
 
   Rake::TestTask.new :integration do |t|
-    t.pattern = 'spec/integration/**_spec.rb'
-    t.verbose = verbose?
+    t.pattern = 'test/integration/**_spec.rb'
     t.options = '--command-name=integration'
+    t.libs = %w(lib test/lib)
+    t.verbose = verbose?
   end
 
   desc 'Run Ruby tests'
