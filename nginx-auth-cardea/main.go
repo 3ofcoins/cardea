@@ -22,6 +22,8 @@ location $cardea_location {
   proxy_pass_request_body off;
   proxy_set_header Content-Length "";
   proxy_set_header X-Cardea-RequestInfo "$remote_addr $scheme://$host$request_uri";
+  proxy_set_header X-Cardea-HMAC-Extra "$http_user_agent";
+  # proxy_set_header X-Cardea-HMAC-Extra "$remote_addr";
   internal;
 }
 

@@ -25,7 +25,7 @@ func NewConfig(secret string) *Config {
 	}
 }
 
-func (c *Config) CheckToken(t *Token, ua string) (err error) {
+func (c *Config) CheckToken(t *Token, hmac_extra string) (err error) {
 	if uint64(t.Age().Seconds()) > c.ExpirationSec {
 		return errors.New("Expired cookie")
 	}
@@ -33,13 +33,13 @@ func (c *Config) CheckToken(t *Token, ua string) (err error) {
 	return nil
 }
 
-func (c *Config) CheckCookie(cookie string, ua string) (t *Token, err error) {
-	t, err = ParseCookie(c.Secret, ua, cookie)
+func (c *Config) CheckCookie(cookie string, hmac_extra string) (t *Token, err error) {
+	t, err = ParseCookie(c.Secret, hmac_extra, cookie)
 	if err != nil {
 		return
 	}
 
-	err = c.CheckToken(t, ua)
+	err = c.CheckToken(t, hmac_extra)
 	return
 }
 
@@ -49,7 +49,7 @@ func (c *Config) CheckRequest(r *http.Request) (t *Token, err error) {
 		return
 	}
 
-	return c.CheckCookie(_cookie.Value, strings.Join(r.Header["User-Agent"], "\n"))
+	return c.CheckCookie(_cookie.Value, strings.Join(r.Header["X-Cardea-Hmac-Extra"], "\n"))
 }
 
 func (c *Config) ServeHTTP(w http.ResponseWriter, r *http.Request) {
