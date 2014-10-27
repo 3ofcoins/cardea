@@ -73,9 +73,7 @@ func main() {
 
 	cfg.Secret = []byte(*secret)
 
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 		} else {
@@ -86,7 +84,7 @@ func main() {
 	nginxConfigTemplate := template.New("nginx.conf")
 	nginxConfigTemplate.Parse(nginxConfigTemplateSource)
 
-	mux.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
 		var params nginxConfigParameters
 		qp := r.URL.Query()
 
@@ -121,7 +119,7 @@ func main() {
 
 	log.Println("Listening on", ln.Addr())
 
-	if err := http.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)}, mux); err != nil {
+	if err := http.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)}, nil); err != nil {
 		log.Fatalln(err)
 	}
 }
