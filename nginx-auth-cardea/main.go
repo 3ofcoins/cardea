@@ -2,11 +2,13 @@ package main
 
 import "flag"
 import "log"
+import "net"
 import "net/http"
 import "net/url"
 import "os"
 import "strconv"
 import "text/template"
+import "time"
 
 import "github.com/3ofcoins/cardea"
 
@@ -71,8 +73,6 @@ func main() {
 
 	cfg.Secret = []byte(*secret)
 
-	log.Println("Starting httpd on", *listen)
-
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -109,5 +109,34 @@ func main() {
 		nginxConfigTemplate.Execute(w, params)
 	})
 
-	http.ListenAndServe(*listen, mux)
+	// We duplicate http.ListenAndServe here to intercept the actual
+	// listener and print the actual listen address, so that we can do
+	// listen on "127.0.0.1:0" and print the actual port to the log
+	// stream.
+
+	ln, err := net.Listen("tcp", *listen)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	log.Println("Listening on", ln.Addr())
+
+	if err := http.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)}, mux); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+// Remaining part of copy-paste from net/http's server.go
+type tcpKeepAliveListener struct {
+	*net.TCPListener
+}
+
+func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(3 * time.Minute)
+	return tc, nil
 }
