@@ -16,9 +16,9 @@ require 'minitest/autorun'
 require 'minitest/spec'
 require 'minitest/pride' if $stdout.tty?
 require 'wrong'
+require 'childprocess_helper'
 
 Wrong.config.alias_assert :expect, override: true
-include Wrong
 
 require 'cardea'
 
@@ -33,4 +33,6 @@ class Minitest::Spec
   def failure_class
     Minitest::Assertion
   end
+
+  include Cardea::Spec
 end
