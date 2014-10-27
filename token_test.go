@@ -92,13 +92,13 @@ func TestToken(t *testing.T) {
 			})
 
 			Convey("Malformed Base64 in username", func() {
-				token, err = deserialize("b-WFjaWVq,YWRtaW4,1396349947")
+				token, err = deserialize("b*WFjaWVq,YWRtaW4,1396349947")
 				So(err, ShouldNotBeNil)
 				So(token, ShouldBeNil)
 			})
 
 			Convey("Malformed Base64 in groups", func() {
-				token, err = deserialize("bWFjaWVq,YW-RtaW4,1396349947")
+				token, err = deserialize("bWFjaWVq,YW*RtaW4,1396349947")
 				So(err, ShouldNotBeNil)
 				So(token, ShouldBeNil)
 			})

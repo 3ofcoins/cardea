@@ -128,17 +128,17 @@ func (t *Token) String() string {
 	return fmt.Sprintf("%s[%s] (%v)", t.User, strings.Join(t.Groups, ","), t.Age())
 }
 
-// Base64 helpers that trim/add `=' padding
+// Base64 helpers
 
 func b64(str string) string {
-	return strings.TrimRight(base64.StdEncoding.EncodeToString([]byte(str)), "=")
+	return strings.TrimRight(base64.URLEncoding.EncodeToString([]byte(str)), "=")
 }
 
 func unb64(str string) (string, error) {
 	if n := len(str) % 4; n != 0 {
 		str += strings.Repeat("=", 4-n)
 	}
-	if bytes, err := base64.StdEncoding.DecodeString(str); err != nil {
+	if bytes, err := base64.URLEncoding.DecodeString(str); err != nil {
 		return "", err
 	} else {
 		return string(bytes), nil
