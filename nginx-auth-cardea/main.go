@@ -4,43 +4,13 @@ import "flag"
 import "log"
 import "net"
 import "net/http"
-import "net/url"
 import "os"
 import "strconv"
-import "text/template"
 import "time"
 
 import "github.com/3ofcoins/cardea"
 
 var cfg cardea.Config
-
-var nginxConfigTemplateSource = `
-set $cardea_server {{.ServerURL}};
-set $cardea_handler {{.HandlerURL}};
-set $cardea_location "/.-cardea-.";
-
-location $cardea_location {
-  proxy_pass $cardea_handler/;
-  proxy_pass_request_body off;
-  proxy_set_header Content-Length "";
-  proxy_set_header X-Cardea-RequestInfo "$remote_addr $scheme://$host$request_uri";
-  proxy_set_header X-Cardea-HMAC-Extra "$http_user_agent";
-  # proxy_set_header X-Cardea-HMAC-Extra "$remote_addr";
-  internal;
-}
-
-auth_request $cardea_location;
-error_page 403 =301 $cardea_server?reason=$cardea_nonce&ref=$scheme://$host$request_uri;
-
-auth_request_set $cardea_user $upstream_http_x_cardea_user;
-auth_request_set $cardea_roles $upstream_http_x_cardea_roles;
-auth_request_set $cardea_nonce $upstream_http_x_cardea_nonce;
-`
-
-type nginxConfigParameters struct {
-	ServerURL  string
-	HandlerURL string
-}
 
 func main() {
 	default_expiration_sec := cardea.DEFAULT_EXPIRATION_SEC
@@ -81,31 +51,7 @@ func main() {
 		}
 	})
 
-	nginxConfigTemplate := template.New("nginx.conf")
-	nginxConfigTemplate.Parse(nginxConfigTemplateSource)
-
-	http.HandleFunc("/config", func(w http.ResponseWriter, r *http.Request) {
-		var params nginxConfigParameters
-		qp := r.URL.Query()
-
-		if qp["server"] != nil {
-			params.ServerURL = qp["server"][0]
-		} else {
-			params.ServerURL = "FIXME"
-		}
-
-		if qp["handler"] != nil {
-			params.HandlerURL = qp["handler"][0]
-		} else {
-			u := &url.URL{Scheme: "http", Host: r.Host}
-			if r.Header["X-Forwarded-Proto"] != nil {
-				u.Scheme = r.Header["X-Forwarded-Proto"][0]
-			}
-			params.HandlerURL = u.String()
-		}
-
-		nginxConfigTemplate.Execute(w, params)
-	})
+	http.HandleFunc("/config", HandleConfig)
 
 	// We duplicate http.ListenAndServe here to intercept the actual
 	// listener and print the actual listen address, so that we can do
