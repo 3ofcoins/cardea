@@ -1,73 +1,83 @@
 package main
 
-import "flag"
+// import "flag"
+import "io/ioutil"
 import "log"
 import "net"
 import "net/http"
-import "os"
-import "strconv"
+
 import "time"
-
 import "github.com/3ofcoins/cardea"
+import "github.com/mpasternacki/flag"	// forked from github.com/namsral/flag
 
-var cfg cardea.Config
+func fatalOnError(err error) {
+	if err != nil {
+		log.Fatalln("FATAL:", err)
+	}
+}
+
+type handler struct {
+	*cardea.Config
+}
+
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	switch r.URL.Path {
+	case "/":
+		h.Config.ServeHTTP(w, r)
+	case "/config":
+		HandleConfig(w, r)
+	default:
+		http.NotFound(w, r)
+	}
+}
 
 func main() {
-	default_expiration_sec := cardea.DEFAULT_EXPIRATION_SEC
-	default_cookie_name := cardea.DEFAULT_COOKIE_NAME
+	var secret string
+	var literal_secret bool
+	var cookie string
+	var listen string
+	var expires uint64
 
-	if env := os.Getenv("CARDEA_COOKIE"); env != "" {
-		default_cookie_name = env
-	}
-
-	if env := os.Getenv("CARDEA_EXPIRATION_SEC"); env != "" {
-		if n, err := strconv.ParseUint(env, 10, 64); err == nil {
-			default_expiration_sec = n
-		} else {
-			log.Fatal(err)
-		}
-	}
-
-	secret := flag.String("secret", os.Getenv("CARDEA_SECRET"),
-		"(not recommended, use CARDEA_SECRET environment variable instead if possible)")
-	flag.StringVar(&cfg.Cookie, "cookie", default_cookie_name,
-		"Name of Cardea's cookie")
-	flag.Uint64Var(&cfg.ExpirationSec, "expiration-sec", default_expiration_sec,
+	flag.StringVar(&secret, "secret", "PATH", "File containing the secret")
+	flag.BoolVar(&literal_secret, "literal-secret", false,
+		"Use -secret option as a literal secret string, not file name (DANGEROUS)")
+	flag.StringVar(&cookie, "cookie", cardea.DEFAULT_COOKIE_NAME, "Name of authentication cookie")
+	flag.StringVar(&listen, "listen", ":8080", "ip:port to listen on")
+	flag.Uint64Var(&expires, "expires", cardea.DEFAULT_EXPIRATION_SEC,
 		"Cookie older than this many seconds will be considered expired")
-	listen := flag.String("listen", ":8080", "ip:port to listen on")
+
+	flag.String("config", "PATH", "load configuration defaults from file")
+
+	flag.CommandLine.SetEnvPrefix("CARDEA")
 	flag.Parse()
 
-	if secret == nil || *secret == "" {
-		log.Fatal("Need a secret to start; set CARDEA_SECRET environment variable")
+	if secret == "PATH" {
+		log.Fatalln("FATAL: Secret not supplied")
 	}
 
-	cfg.Secret = []byte(*secret)
+	if literal_secret {
+		log.Println("WARNING: using secret value literally. Hope you know what you are doing.")
+	} else {
+		secretBytes, err := ioutil.ReadFile(secret)
+		fatalOnError(err)
+		secret = string(secretBytes)
+	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(w, r)
-		} else {
-			cfg.ServeHTTP(w, r)
-		}
-	})
-
-	http.HandleFunc("/config", HandleConfig)
+	cfg := &handler{cardea.NewConfig(secret)}
+	cfg.Cookie = cookie
+	cfg.ExpirationSec = expires
 
 	// We duplicate http.ListenAndServe here to intercept the actual
 	// listener and print the actual listen address, so that we can do
 	// listen on "127.0.0.1:0" and print the actual port to the log
 	// stream.
 
-	ln, err := net.Listen("tcp", *listen)
-	if err != nil {
-		log.Fatalln(err)
-	}
+	ln, err := net.Listen("tcp", listen)
+	fatalOnError(err)
 
 	log.Println("Listening on", ln.Addr())
 
-	if err := http.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)}, nil); err != nil {
-		log.Fatalln(err)
-	}
+	fatalOnError(http.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)}, cfg))
 }
 
 // Remaining part of copy-paste from net/http's server.go
