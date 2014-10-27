@@ -13,3 +13,6 @@ Style/ClassAndModuleChildren:
 
 Style/TrailingComma:
   Enabled: false
+
+Metrics/MethodLength:
+  Max: 64
