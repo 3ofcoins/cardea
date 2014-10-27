@@ -116,7 +116,7 @@ end
 namespace :ruby do
   RuboCop::RakeTask.new
 
-  Rake::TestTask.new :unit do |t|
+  Rake::TestTask.new :spec do |t|
     t.pattern = 'test/spec/**_spec.rb'
     t.options = '--command-name=spec'
     t.libs = %w(lib test/lib)
