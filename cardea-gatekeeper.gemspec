@@ -4,7 +4,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 require 'cardea/version'
 
 Gem::Specification.new do |spec|
-  spec.name          = 'cardea'
+  spec.name          = 'cardea-gatekeeper'
   spec.version       = Cardea::VERSION
   spec.authors       = ['Maciej Pasternacki']
   spec.email         = ['maciej@3ofcoins.net']
@@ -15,14 +15,12 @@ Gem::Specification.new do |spec|
 
   spec.files         = %w(LICENSE.txt
                           README.md
-                          cardea.gemspec
-                          lib/cardea.rb
-                          lib/cardea/helpers.rb
-                          lib/cardea/token.rb
-                          lib/cardea/version.rb)
+                          cardea-gatekeeper.gemspec
+                          lib/cardea/gatekeeper.rb)
   spec.executables   = spec.files.grep(/^bin\//) { |f| File.basename(f) }
   spec.test_files    = [] # Tests include integration, they're not in gem
   spec.require_paths = ['lib']
 
-  spec.add_dependency 'hashie', '~> 3.3'
+  spec.add_dependency 'cardea', Cardea::VERSION
+  spec.add_dependency 'sinatra', '~> 1.4', '>= 1.4.5'
 end
