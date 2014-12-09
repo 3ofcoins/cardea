@@ -140,6 +140,9 @@ namespace :ruby do
   task :report => [:test]
 end
 
+desc 'Run full Ruby workflow'
+task :ruby => ['ruby:test', 'ruby:report']
+
 desc 'Run all tests'
 task :test => ['go:test', 'ruby:test']
 
