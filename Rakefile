@@ -8,13 +8,13 @@ require 'rubocop/rake_task'
 # rubocop:disable Style/HashSyntax, Metrics/LineLength
 
 GO_DIRS = `git ls-files -z`
-  .split("\0")
-  .grep(/\.go$/)
-  .map { |f| File.dirname(File.join('.', f)) }
-  .uniq
+          .split("\0")
+          .grep(/\.go$/)
+          .map { |f| File.dirname(File.join('.', f)) }
+          .uniq
 
 GO_TOOLS = %w(cover vet)
-  .map { |cmd| "code.google.com/p/go.tools/cmd/#{cmd}" }
+           .map { |cmd| "code.google.com/p/go.tools/cmd/#{cmd}" }
 
 def cov?
   ENV['COVERAGE']
@@ -42,10 +42,10 @@ task :prereqs do
   sh get_cmd.join(' ')
 
   gobin = `go env GOPATH`
-    .strip
-    .split(':')
-    .map { |dir| File.join(dir, 'bin') }
-    .select { |dir| File.directory?(dir) }
+          .strip
+          .split(':')
+          .map { |dir| File.join(dir, 'bin') }
+          .select { |dir| File.directory?(dir) }
   ENV['PATH'] = "#{gobin.join(':')}:#{ENV['PATH']}"
 end
 
@@ -113,6 +113,9 @@ namespace :go do
   end
 end
 
+desc 'Run whole workflow for Go'
+task :go => ['go:test', 'go:report']
+
 namespace :ruby do
   RuboCop::RakeTask.new
 
@@ -131,7 +134,7 @@ namespace :ruby do
   end
 
   desc 'Run Ruby tests'
-  task :test => [:rubocop, :unit, :integration]
+  task :test => [:rubocop, :spec, :integration]
 
   desc 'Generate Ruby reports'
   task :report => [:test]
@@ -144,3 +147,5 @@ desc 'Generate all reports'
 task :report => ['go:report', 'ruby:report']
 
 task :default => [:build, :test, :report]
+
+task 'ruby:integration' => :build

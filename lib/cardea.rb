@@ -1,6 +1,9 @@
 require 'cardea/version'
 require 'cardea/helpers'
 require 'cardea/token'
-require 'cardea/config'
 
-module Cardea; end
+module Cardea
+  def self.token(*args)
+    Token.new(*args)
+  end
+end

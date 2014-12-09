@@ -134,14 +134,22 @@ func b64(str string) string {
 	return strings.TrimRight(base64.URLEncoding.EncodeToString([]byte(str)), "=")
 }
 
-func unb64(str string) (string, error) {
+func unb64_bytes(str string) ([]byte, error) {
 	if n := len(str) % 4; n != 0 {
 		str += strings.Repeat("=", 4-n)
 	}
 	if bytes, err := base64.URLEncoding.DecodeString(str); err != nil {
+		return nil, err
+	} else {
+		return bytes, nil
+	}
+}
+
+func unb64(str string) (string, error) {
+	if bb, err := unb64_bytes(str); err != nil {
 		return "", err
 	} else {
-		return string(bytes), nil
+		return string(bb), nil
 	}
 }
 
@@ -153,11 +161,27 @@ func check_hmac(
 	unsigned := fmt.Sprintf(format, params...)
 
 	h := hmac.New(sha256.New, secret)
-	received_b, err := hex.DecodeString(received)
-	if err != nil {
-		// Malformed hex encoding, screw it.
+
+	var received_b []byte
+	switch len(received) {
+	case 64: // Hex-encoded
+		if bb, err := hex.DecodeString(received); err != nil {
+			// Malformed hex encoding, screw it.
+			return false
+		} else {
+			received_b = bb
+		}
+	case 43: // Base64-encoded
+		if bb, err := unb64_bytes(received); err != nil {
+			// Malformed base64 encoding, screw it.
+			return false
+		} else {
+			received_b = bb
+		}
+	default: // not recognized
 		return false
 	}
+
 	h.Write([]byte(unsigned))
 	return hmac.Equal(h.Sum(nil), received_b)
 }

@@ -3,12 +3,10 @@ package main
 // import "flag"
 import "io/ioutil"
 import "log"
-import "net"
 import "net/http"
 
-import "time"
 import "github.com/3ofcoins/cardea"
-import "github.com/mpasternacki/flag"	// forked from github.com/namsral/flag
+import "github.com/mpasternacki/flag" // forked from github.com/namsral/flag
 
 func fatalOnError(err error) {
 	if err != nil {
@@ -67,30 +65,6 @@ func main() {
 	cfg.Cookie = cookie
 	cfg.ExpirationSec = expires
 
-	// We duplicate http.ListenAndServe here to intercept the actual
-	// listener and print the actual listen address, so that we can do
-	// listen on "127.0.0.1:0" and print the actual port to the log
-	// stream.
-
-	ln, err := net.Listen("tcp", listen)
-	fatalOnError(err)
-
-	log.Println("Listening on", ln.Addr())
-
-	fatalOnError(http.Serve(tcpKeepAliveListener{ln.(*net.TCPListener)}, cfg))
-}
-
-// Remaining part of copy-paste from net/http's server.go
-type tcpKeepAliveListener struct {
-	*net.TCPListener
-}
-
-func (ln tcpKeepAliveListener) Accept() (c net.Conn, err error) {
-	tc, err := ln.AcceptTCP()
-	if err != nil {
-		return
-	}
-	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(3 * time.Minute)
-	return tc, nil
+	log.Println("Starting HTTP server on", listen)
+	fatalOnError(http.ListenAndServe(listen, cfg))
 }

@@ -30,6 +30,6 @@ func main() {
 								Literal("#"),
 							),
 						)),
-					Capture("HMAC", HexNumber),
+					Capture("HMAC", Alternation(HexNumber, Some(Base64Char))),
 				))))
 }

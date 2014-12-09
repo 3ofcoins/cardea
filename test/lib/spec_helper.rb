@@ -14,10 +14,12 @@ require 'simplecov' if ENV['COVERAGE']
 
 require 'minitest/autorun'
 require 'minitest/spec'
+require 'minitest/reporters'
 require 'minitest/pride' if $stdout.tty?
 require 'wrong'
 require 'childprocess_helper'
 
+Minitest::Reporters.use! Minitest::Reporters::SpecReporter.new
 Wrong.config.alias_assert :expect, override: true
 
 require 'cardea'
@@ -35,4 +37,6 @@ class Minitest::Spec
   end
 
   include Cardea::Spec
+
+  let(:secret) { 'SWORDFISH' }
 end

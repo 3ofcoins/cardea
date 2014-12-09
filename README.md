@@ -52,7 +52,7 @@ HMAC is computed on a **payload**, which is cookie's text combined
 with the extras:
     
     secret         = ANY ; preshared secret, provided in configuration
-    hmac           = HEX(HMAC(secret, payload))
+    hmac           = HMAC(secret, payload)
 
 There are two cookie formats, "Modern" (Cardea's), and optional
 "Legacy" (Odin Authenticator's). The two formats imply slightly
@@ -67,7 +67,7 @@ is designed to resemble an URI (and utilise existing parsing code),
 and to be compatible with HTTP Basic authentication header. There is
 also an optional legacy format, which will be introduced later on.
 
-    modern_cookie  = modern_token "#" hmac
+    modern_cookie  = modern_token "#" B64(hmac)
     modern_payload = modern_token "#" hmac_extras
     modern_token   = username ":" [ format "?" ] query
     username       = WORD
@@ -92,7 +92,7 @@ disabled by default.
     cookie        /= legacy_cookie
     payload       /= legacy_payload
     
-    legacy_cookie  = legacy_token "," hmac
+    legacy_cookie  = legacy_token "," HEX(hmac)
     legacy_payload = legacy_token "," hmac_extras
     legacy_token   = B64(username) "," B64(legacy_groups) "," legacy_timestamp
     legacy_timestamp = NUMBER ; UNIX time as decimal number
