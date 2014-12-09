@@ -68,7 +68,7 @@ module Cardea
           end
         end
 
-        log_ff
+        ff
 
         Minitest.after_run { self.cleanup! }
       end
@@ -85,8 +85,18 @@ module Cardea
         end
       end
 
-      def log_ff
-        log.seek(0, :END)
+      def ff
+        @log_s = ''
+        @log.seek(0, :END)
+      end
+
+      def rew
+        @log_s = ''
+        @log.seek(0, :SET)
+      end
+
+      def log
+        @log_s << @log.read
       end
 
       def http
@@ -104,16 +114,15 @@ module Cardea
 
     def setup
       super
-      Endpoint.each { |p| p.log_ff }
+      Endpoint.each { |p| p.ff }
     end
-    CARDEA_SECRET = 'SWORDFISH'
 
     Endpoint.define :authreq do
       @port = ENV['AUTHREQ_PORT'] ? ENV['AUTHREQ_PORT'].to_i : 4000
       @command = [
         './target/nginx-auth-cardea',
         '-listen', "127.0.0.1:#{port}",
-        '-secret', CARDEA_SECRET,
+        '-secret', 'SWORDFISH',
         '-literal-secret'
       ]
     end
