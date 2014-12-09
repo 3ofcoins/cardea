@@ -10,76 +10,154 @@ ChildProcess.posix_spawn = true
 
 module Cardea
   module Spec
-    CARDEA_AUTHREQ_PORT =
-      ENV['CARDEA_AUTHREQ_PORT'] ? ENV['CARDEA_AUTHREQ_PORT'].to_i : 4000
-    CARDEA_NGINX_PORT =
-      ENV['CARDEA_NGINX_PORT'] ? ENV['CARDEA_NGINX_PORT'].to_i : 4001
+    class Endpoint
+      class << self
+        def define(name, *args, &block)
+          (@defs ||= {})[name] = [ args, block ]
+          nil
+        end
 
-    def childprocess(*commandline) # rubocop:disable Metrics/AbcSize
-      if commandline.last.is_a? Hash
-        opts = commandline.pop
-      else
-        opts = {}
+        def [](name)
+          (@procs ||= {})[name] ||=
+            begin
+              args, block = @defs[name]
+              new(name, *args, &block)
+            end
+        end
+
+        def each(&block)
+          @procs.values.each(&block) if @procs
+        end
       end
 
-      process = ChildProcess.build(*commandline)
-      process.io.stdout = Tempfile.new('childprocess-stdout')
-      process.io.stderr = Tempfile.new('childprocess-stdout')
-      process.environment.merge! opts[:env] if opts[:env]
-      process.start unless opts[:dont_start]
+      attr_reader :name, :process, :opts, :port, :log
 
-      Minitest.after_run do
-        process.stop if process.alive?
-        File.unlink process.io.stdout.path,
-                    process.io.stderr.path
-      end
+      def initialize(name, *args, &block)
+        @name = name
+        @args = args
+        instance_eval(&block)
 
-      process
-    end
+        @process = ChildProcess.build(*@command)
+        @process.io.stdout = Tempfile.new("childprocess-#{name}-stdout")
+        @process.io.stderr = Tempfile.new("childprocess-#{name}-stderr")
+        @log = File.open(@process.io.stderr.path)
 
-    def authreq_handler
-      return $authreq_handler if $authreq_handler
+        # assert tcp is not listening yet (no leftover processes)
+        begin
+          sock = TCPSocket.new('localhost', port)
+        rescue Errno::ECONNREFUSED
+          # this is good
+        else
+          sock.close
+          raise "#{name}: port #{port} already listening"
+        end
 
-      process = childprocess('./target/nginx-auth-cardea',
-                             '-listen', "127.0.0.1:#{CARDEA_AUTHREQ_PORT}",
-                             '-secret', secret,
-                             '-literal-secret')
-      Timeout.timeout 10 do
-        loop do
-          fail 'nginx-auth-cardea died' unless process.alive?
-          begin
-            sock = TCPSocket.new('localhost', CARDEA_AUTHREQ_PORT)
-          rescue Errno::ECONNREFUSED
-            sleep 0.1
-          else
-            sock.close
-            break
+        process.start
+
+        Timeout.timeout 10 do
+          loop do
+            fail 'process died' unless process.alive?
+            begin
+              sock = TCPSocket.new('localhost', port)
+            rescue Errno::ECONNREFUSED
+              sleep 0.1
+            else
+              sock.close
+              break
+            end
           end
         end
+
+        log_ff
+
+        Minitest.after_run { self.cleanup! }
       end
-      $authreq_log = File.open(process.io.stderr.path)
-      $authreq_log.seek(0, :END)
-      $authreq_handler = process
-    end
 
-    def authreq_log
-      $authreq_log.read if $authreq_log
-    end
-
-    def authreq_http
-      @authreq_http ||=
-        begin
-          authreq_handler # for side effects
-          Net::HTTP.start('127.0.0.1', Spec::CARDEA_AUTHREQ_PORT)
+      def cleanup!
+        process.stop if process.alive?
+        @log.close
+        [
+          process.io.stdout.path,
+          process.io.stderr.path,
+          *Array(@remove_files),
+        ].each do |f|
+          File.unlink(f) rescue nil
         end
+      end
+
+      def log_ff
+        log.seek(0, :END)
+      end
+
+      def http
+        @http ||= Net::HTTP.start('127.0.0.1', port)
+      end
+
+      def get(path, headers={})
+        req = Net::HTTP::Get.new(path)
+        headers.each do |hdr, val|
+          req[hdr] = val
+        end
+        http.request(req)
+      end
     end
 
-    def teardown
-      $authreq_log.seek(0, :END) if $authreq_log
-      @authreq_http.finish if @authreq_http
-      @authreq_http = nil
+    def setup
+      super
+      Endpoint.each { |p| p.log_ff }
+    end
+    CARDEA_SECRET = 'SWORDFISH'
+
+    Endpoint.define :authreq do
+      @port = ENV['AUTHREQ_PORT'] ? ENV['AUTHREQ_PORT'].to_i : 4000
+      @command = [
+        './target/nginx-auth-cardea',
+        '-listen', "127.0.0.1:#{port}",
+        '-secret', CARDEA_SECRET,
+        '-literal-secret'
+      ]
     end
 
-    private
+    Endpoint.define :nginx do
+      @port = ENV['NGINX_PORT'] ? ENV['NGINX_PORT'].to_i : 4001
+
+      # get config snippet from authreq
+      res = Endpoint[:authreq].http.get('/config?server=http://example.com/')
+      fail unless res.code == '200'
+      cardea_snippet = res.body
+
+      nginx_conf = Tempfile.new('nginx.conf.')
+      nginx_conf.write <<EOF
+worker_processes 1;
+error_log stderr;
+daemon off;
+
+events {
+  worker_connections 32;
+  accept_mutex off;
+  use kqueue;
+}
+
+http {
+  default_type application/octet-stream;
+  access_log off;
+  sendfile on;
+  index index.html README.md;
+  server {
+    listen #{@port} default;
+    server_name _;
+    root #{File.expand_path(File.join(File.dirname(__FILE__), '../..'))};
+    #{cardea_snippet}
+    add_header X-Cardea-User $cardea_user;
+    location /config {
+      auth_request off;
+    }
+  }
+}
+EOF
+      nginx_conf.close
+      @remove_files = [nginx_conf.path]
+      @command = ['nginx', '-c', nginx_conf.path]
+    end
   end
 end

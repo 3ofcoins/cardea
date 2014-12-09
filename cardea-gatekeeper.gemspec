@@ -17,7 +17,9 @@ Gem::Specification.new do |spec|
                           README.md
                           cardea-gatekeeper.gemspec
                           config.ru
+                          config/gatekeeper.rb
                           lib/cardea/gatekeeper.rb)
+  # lib/cardea/gatekeeper/**
   spec.executables   = spec.files.grep(/^bin\//) { |f| File.basename(f) }
   spec.test_files    = [] # Tests include integration, they're not in gem
   spec.require_paths = ['lib']

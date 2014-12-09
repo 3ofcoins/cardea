@@ -38,5 +38,5 @@ class Minitest::Spec
 
   include Cardea::Spec
 
-  let(:secret) { 'SWORDFISH' }
+  let(:secret) { CARDEA_SECRET } # FIXME: warn & remove
 end
