@@ -12,5 +12,7 @@ group :development do
   gem 'simplecov', '~> 0.9.1'
   gem 'wrong', '~> 0.7.1'
   gem 'childprocess', '~> 0.5.5'
+  gem 'capybara'
+  gem 'capybara-mechanize'
   gem 'pry'
 end

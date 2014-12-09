@@ -16,11 +16,14 @@ Gem::Specification.new do |spec|
   spec.files         = %w(LICENSE.txt
                           README.md
                           cardea-gatekeeper.gemspec
+                          config.ru
                           lib/cardea/gatekeeper.rb)
   spec.executables   = spec.files.grep(/^bin\//) { |f| File.basename(f) }
   spec.test_files    = [] # Tests include integration, they're not in gem
   spec.require_paths = ['lib']
 
   spec.add_dependency 'cardea', Cardea::VERSION
-  spec.add_dependency 'sinatra', '~> 1.4', '>= 1.4.5'
+  spec.add_dependency 'sinatra',    '~> 1.4', '>= 1.4.5'
+  spec.add_dependency 'unicorn',    '~> 4.8', '>= 4.8.3'
+  spec.add_dependency 'tinyconfig', '~> 0.1', '>= 0.1.1'
 end
