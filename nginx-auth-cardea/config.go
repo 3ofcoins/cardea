@@ -23,7 +23,7 @@ location $cardea_location {
 }
 
 auth_request $cardea_location;
-error_page 403 =301 $cardea_server?reason=$cardea_nonce&ref=$scheme://$host$request_uri;
+error_page 403 =302 $cardea_server?reason=$cardea_nonce&ref=$scheme://$host$request_uri;
 
 auth_request_set $cardea_user $upstream_http_x_cardea_user;
 auth_request_set $cardea_roles $upstream_http_x_cardea_roles;
