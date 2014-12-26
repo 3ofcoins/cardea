@@ -5,6 +5,8 @@ require 'uri'
 
 module Cardea
   describe 'nginx-auth-cardea' do
+    let(:token) { Cardea::Token.new('ladmin', g: %w(foo bar)) }
+
     def expect_success(res)
       expect { res.code == '200' }
       expect { res['x-cardea-user'] == 'ladmin' }

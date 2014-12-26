@@ -38,7 +38,6 @@ class Minitest::Spec
 
   include Cardea::Spec
 
-  let(:token) { Cardea::Token.new('ladmin', g: %w(foo bar)) }
   let(:authreq) { Endpoint[:authreq] }
   let(:nginx) { Endpoint[:nginx] }
 end

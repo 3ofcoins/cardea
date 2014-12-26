@@ -5,6 +5,8 @@ require 'uri'
 
 module Cardea
   describe 'nginx integration' do
+    let(:token) { Cardea::Token.new('ladmin', g: %w(foo bar)) }
+
     it 'bounces unauthenticated connections' do
       res = nginx.get('/')
       expect { res.code == '302' }

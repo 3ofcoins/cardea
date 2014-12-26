@@ -23,7 +23,7 @@ module Cardea
       @user = user
       super(*args, &block)
       self['g'] = Array(self['g'])
-      self.t = self['t'] || Time.now.to_i
+      self['t'] ||= Time.now.to_i
     end
 
     def t=(value)
