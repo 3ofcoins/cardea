@@ -1,2 +1,2 @@
 require 'cardea/gatekeeper'
-run Cardea::Gatekeeper.new
+run Cardea::Gatekeeper::App.new

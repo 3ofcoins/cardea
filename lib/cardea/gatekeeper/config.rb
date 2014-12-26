@@ -2,7 +2,7 @@ require 'tinyconfig'
 
 module Cardea
   module Gatekeeper
-    module Config
+    class Config < TinyConfig
       option :secret, nil
       option :cardea_cookie, 'ca'
       option :odin_cookie, 'oa'
