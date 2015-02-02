@@ -7,6 +7,7 @@ module Cardea
       option :cardea_cookie, 'ca'
       option :odin_cookie, 'oa'
       option :odin_compatible, false
+      option :cookie_secure, true
 
       def self.root_dir
         ::File.expand_path(::File.join(

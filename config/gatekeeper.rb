@@ -1,3 +1,3 @@
 # Default configuration for Cardea Gatekeeper app
 
-secret ENV['CARDEA_SECRET']
+secret ::ENV['CARDEA_SECRET']

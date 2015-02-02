@@ -15,4 +15,5 @@ group :development do
   gem 'capybara'
   gem 'capybara-mechanize'
   gem 'pry'
+  gem 'foreman'
 end

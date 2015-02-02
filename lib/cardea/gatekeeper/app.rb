@@ -26,7 +26,20 @@ module Cardea
       end
 
       post '/login' do
-        "Would log in as <strong>#{params[:username]}</strong> and redirect to <strong>#{ref}</strong>"
+        # TODO: expires (smart); ¿max_age?
+        response.set_cookie config.cardea_cookie,
+                            value: "You are #{params[:username]}",
+                            domain: ".#{request.host}",
+                            secure: config.cookie_secure,
+                            httponly: true
+        if config.odin_compatible
+          response.set_cookie config.odin_cookie,
+                              value: "You are #{params[:username]}",
+                              domain: ".#{request.host}",
+                              secure: config.cookie_secure,
+                              httponly: true
+        end
+        redirect ref, 303
       end
     end
   end
