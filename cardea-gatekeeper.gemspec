@@ -16,7 +16,6 @@ Gem::Specification.new do |spec|
   spec.files         = %w(LICENSE.txt
                           README.md
                           cardea-gatekeeper.gemspec
-                          config.ru
                           config/gatekeeper.rb
                           lib/cardea/gatekeeper.rb)
   # lib/cardea/gatekeeper/**
@@ -28,5 +27,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'erubis',     '~> 2.7', '>= 2.7.0'
   spec.add_dependency 'sinatra',    '~> 1.4', '>= 1.4.5'
   spec.add_dependency 'tinyconfig', '~> 0.1', '>= 0.1.1'
-  spec.add_dependency 'unicorn',    '~> 4.8', '>= 4.8.3'
+  spec.add_dependency 'omniauth',   '~> 1.2', '>= 1.2.2'
+  spec.add_dependency 'haml'
 end

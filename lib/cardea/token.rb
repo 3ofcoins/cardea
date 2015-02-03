@@ -4,6 +4,7 @@ require 'time'
 require 'hashie'
 
 require 'cardea/helpers'
+require 'cardea/regexp'
 
 module Cardea
   class Token < Hashie::Mash
@@ -57,11 +58,11 @@ module Cardea
       encode_hmac(
         OpenSSL::HMAC.digest(OpenSSL::Digest::SHA256.new, secret, [
           to_s,
-          Helpers.b64(hmac_extras.map(&:to_s).join("\r\n")),
+          encode_extras(hmac_extras),
         ].join(cardea_glue)))
     end
 
-    def encode_hmac(bin_hmac)
+    def self.encode_hmac(bin_hmac)
       Helpers.b64(bin_hmac)
     end
 
@@ -69,8 +70,21 @@ module Cardea
       [to_s, hmac(secret, *hmac_extras)].join(cardea_glue)
     end
 
-    def basic_auth(secret, hmac_extras)
+    def basic_auth(secret, *hmac_extras)
       "Basic #{Base64.strict_encode64(cookie(secret, hmac_extras))}"
+    end
+
+    def self.parse(cookie, secret, *hmac_extras)
+      if cookie =~ TOKEN_RX
+        m = Regexp.last_match
+        raise "Unsupported legacy cookie" if m[:LEGACY_TIMESTAMP]
+        computed_hmac = encode_hmac(OpenSSL::HMAC.digest(OpenSSL::Digest::SHA256.new, secret,
+            "#{m[:USERNAME]}:#{m[:QUERY]}##{encode_extras(hmac_extras)}"))
+        raise "HMAC mismatch" if computed_hmac != m[:HMAC]
+        return self.new(m[:USERNAME], CGI.parse(m[:QUERY]))
+      else
+        raise "Invalid cookie"
+      end
     end
 
     def legacy
@@ -82,7 +96,7 @@ module Cardea
         [Helpers.b64(user), Helpers.b64(g.join(',')), t.to_s].join(',')
       end
 
-      def encode_hmac(bin_hmac)
+      def self.encode_hmac(bin_hmac)
         Digest.hexencode(bin_hmac)
       end
 
@@ -93,6 +107,24 @@ module Cardea
       def basic_auth(_secret, _hmac_extras)
         fail NotImplementedError
       end
+
+      def self.parse(_cookie, _secret, *_hmac_extras)
+        fail NotImplementedError
+      end
+    end
+
+    private
+
+    def self.encode_extras(hmac_extras)
+      Helpers.b64(hmac_extras.map(&:to_s).join("\r\n"))
+    end
+
+    def encode_extras(hmac_extras)
+      self.class.encode_extras(hmac_extras)
+    end
+
+    def encode_hmac(bin_hmac)
+      self.class.encode_hmac(bin_hmac)
     end
   end
 end

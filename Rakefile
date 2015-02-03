@@ -62,6 +62,10 @@ generate_file 'regexp.go' => 'script/compose_regexp.go' do
   sh 'go run script/compose_regexp.go > regexp.go'
 end
 
+generate_file 'lib/cardea/regexp.rb' => ['regexp.go', 'script/regexp2ruby.pl'] do
+  sh 'script/regexp2ruby.pl < regexp.go > lib/cardea/regexp.rb'
+end
+
 desc 'Generate secondary files'
 task :generate => :prereqs
 task :generate => GENERATED do

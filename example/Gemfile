@@ -1,0 +1,7 @@
+source 'https://rubygems.org'
+
+gem 'cardea', path: '..'
+gem 'cardea-gatekeeper', path: '..'
+
+gem 'omniauth-google-oauth2', '~> 0.2.6'
+gem 'unicorn',                '~> 4.8', '>= 4.8.3'
