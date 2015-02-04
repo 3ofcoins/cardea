@@ -93,6 +93,7 @@ module Cardea
 
     class Odin < Token
       def to_s
+        g << '_' if g.empty? # Odin doesn't accept empty "groups" field
         [Helpers.b64(user), Helpers.b64(g.join(',')), t.to_s].join(',')
       end
 
