@@ -21,8 +21,9 @@ module Cardea
       set :cookie_name, 'ca'
       set :cookie_secure, nil
       set :login_href, 'https://github.com/3ofcoins/cardea/'
-      set :login_text, 'NOT CONFIGURED'
+      set :login_text, 'Configure Me, Please'
       set :odin_cookie_name, nil
+      set :debug_auth, false
 
       def request_token
         return unless request.cookies.include?(settings.cookie_name)
@@ -51,6 +52,8 @@ module Cardea
       get '/login' do
         if params[:return_to] && params[:return_to] != ''
           session[:return_to] = params[:return_to]
+        elsif settings.odin_cookie_name && params[:ref] && params[:ref] != ''
+          session[:return_to] = params[:ref]
         else
           session.delete(:return_to)
         end
@@ -61,7 +64,7 @@ module Cardea
         {
           domain: settings.cookie_domain || ".#{request.host}",
           path: '/',
-          secure: settings.cookie_secure,
+          secure: settings.cookie_secure.nil? ? request.ssl? : settings.cookie_secure,
           httponly: true,
         }
       end
@@ -72,6 +75,7 @@ module Cardea
       end
 
       def login(username, meta={})
+        return logout unless username # FIXME: show something?
         tk = Cardea.token(username, meta)
         # TODO: expires (smart); ¿max_age?
         response.set_cookie(settings.cookie_name, cookie_parameters.merge(value: tk.cookie(settings.cardea_secret, *hmac_extras)))
@@ -83,7 +87,7 @@ module Cardea
         response.delete_cookie(settings.cookie_name, cookie_parameters)
         response.delete_cookie(settings.odin_cookie_name, cookie_parameters) if settings.odin_cookie_name
         session.delete(:return_to)
-        redirect url('/login'), 303
+        redirect to('/login'), 303
       end
 
       # OmniAuth Integration
@@ -96,15 +100,29 @@ module Cardea
         {}
       end
 
-      def self.omniauth(&block)
+      def self.omniauth_builder(&block)
         require 'omniauth'
+        require 'sinatra/multi_route'
 
         use OmniAuth::Builder, &block
+        register Sinatra::MultiRoute
 
-        post '/auth/:name/callback' do
+        route :get, :post, '/auth/:name/callback' do
           auth = request.env['omniauth.auth']
+          if settings.debug_auth
+            require 'pp'
+            pp auth
+          end
           login(omniauth_username(auth), omniauth_extras(auth))
         end
+      end
+
+      def self.omniauth(provider_name, *args)
+        omniauth_builder do
+          provider provider_name, *args
+        end
+        set :login_href, "/auth/#{provider_name}"
+        set :login_text, "Sign in"
       end
     end
   end

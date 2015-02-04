@@ -24,9 +24,10 @@ Gem::Specification.new do |spec|
   spec.require_paths = ['lib']
 
   spec.add_dependency 'cardea', Cardea::VERSION
-  spec.add_dependency 'erubis',     '~> 2.7', '>= 2.7.0'
-  spec.add_dependency 'sinatra',    '~> 1.4', '>= 1.4.5'
-  spec.add_dependency 'tinyconfig', '~> 0.1', '>= 0.1.1'
-  spec.add_dependency 'omniauth',   '~> 1.2', '>= 1.2.2'
-  spec.add_dependency 'haml'
+  spec.add_dependency 'erubis',          '~> 2.7', '>= 2.7.0'
+  spec.add_dependency 'sinatra',         '~> 1.4', '>= 1.4.5'
+  spec.add_dependency 'sinatra-contrib', '~> 1.4', '>= 1.4.2'
+  spec.add_dependency 'tinyconfig',      '~> 0.1', '>= 0.1.1'
+  spec.add_dependency 'omniauth',        '~> 1.2', '>= 1.2.2'
+  spec.add_dependency 'haml',            '~> 4.0', '>= 4.0.6'
 end
