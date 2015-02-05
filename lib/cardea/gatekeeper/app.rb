@@ -33,30 +33,33 @@ module Cardea
         puts "ERROR parsing cookie: #{e}"
       end
 
-      get '/' do
-        if request_token
-          haml :landing
-        else
-          login_url = '/login'
-          if params[:return_to] && params[:return_to] != ''
-            login_url << "?return_to=#{CGI.escape(params[:return_to])}"
-          end
-          redirect url(login_url), 302
+      def authorize!
+        return if request_token
+        login_url = '/login'
+        if params[:return_to] && params[:return_to] != ''
+          login_url << "?return_to=#{CGI.escape(params[:return_to])}"
         end
+        redirect url(login_url)
+      end
+
+      def return_to
+        return params[:return_to] if params[:return_to] && params[:return_to] != ''
+        return params[:ref] if settings.odin_cookie_name && params[:ref] && params[:ref] != ''
+      end
+
+      get '/' do
+        authorize!
+        haml :index
       end
 
       get '/logout' do
         logout
+        redirect to('/login')
       end
 
       get '/login' do
-        if params[:return_to] && params[:return_to] != ''
-          session[:return_to] = params[:return_to]
-        elsif settings.odin_cookie_name && params[:ref] && params[:ref] != ''
-          session[:return_to] = params[:ref]
-        else
-          session.delete(:return_to)
-        end
+        redirect(return_to || url('/')) if request_token
+        session[:return_to] = return_to
         haml :login
       end
 
@@ -87,7 +90,6 @@ module Cardea
         response.delete_cookie(settings.cookie_name, cookie_parameters)
         response.delete_cookie(settings.odin_cookie_name, cookie_parameters) if settings.odin_cookie_name
         session.delete(:return_to)
-        redirect to('/login'), 303
       end
 
       # OmniAuth Integration
@@ -114,6 +116,12 @@ module Cardea
             pp auth
           end
           login(omniauth_username(auth), omniauth_extras(auth))
+        end
+
+        route :get, :post, '/auth/failure' do
+          # ?message=csrf_detected&strategy=google_oauth2
+          logout
+          redirect to('/login') # FIXME: login error page
         end
       end
 

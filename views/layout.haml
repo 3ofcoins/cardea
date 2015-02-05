@@ -8,17 +8,37 @@
 
     %link{href: url('/css/bootstrap.min.css'), rel: "stylesheet"}
 
+    :css
+      .center-block { display: block; margin-left: auto; margin-right: auto; }
+      .cardea-pic { display: block; margin-left: auto; margin-right: auto; margin-bottom: 1.5em; }
+      footer { margin-top: 3em; padding-top: 1.5em; text-align: center; opacity: 0.66; }
+      .sep { display: inline-block; width: 2em; text-align: center; color: #800000; }
+
     /[if lt IE 9]
       %script(src="https://oss.maxcdn.com/html5shiv/3.7.2/html5shiv.min.js")
       %script(src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js")
 
   %body
+    %nav.navbar.navbar-default
+      .container
+        .navbar-header
+          %a.navbar-brand{href: url('/')} Cardea
+        %ul.nav.navbar-nav.navbar-right
+          - if request_token
+            %li
+              %a{href: url('/logout'), title: "Sign Out"}
+                %span.glyphicon.glyphicon-log-out
+                = request_token.user
+
     .container
       .row
-        .col-sm-7.col-md-6(style="text-align: center")
-          %img{src: url('/img/cardea-max-600.png'), alt: "Cardea"}
-        .col-sm-5.col-md-6
-          %h1 Cardea
+        .col-sm-7.col-md-5
+          - if request_token
+            %img.center-block{src: url('/img/cardea-max-otwarte-600.png'), alt: "Cardea"}
+          - else
+            %img.center-block{src: url('/img/cardea-max-600.png'), alt: "Cardea"}
+
+        .col-sm-5.col-md-7
           != yield
 
       %footer
@@ -26,7 +46,13 @@
         version
         = Cardea::VERSION
 
+        %span.sep ❦
+
+        Illustration by
+        %a(href="http://agatanawrot.com/") Agata Nawrot
+
         - if settings.company_name
+          %span.sep ❦
           Running for
           - if settings.company_url
             %a{href: settings.company_url}= settings.company_name
