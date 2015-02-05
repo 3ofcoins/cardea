@@ -24,7 +24,11 @@ module Cardea
       @user = user
       super(*args, &block)
       self['g'] = Array(self['g'])
-      self['t'] ||= Time.now.to_i
+      if self['t']
+        self['t'] = Array(self['t']).first.to_i
+      else
+        self['t'] = Time.now.to_i
+      end
     end
 
     def t=(value)
@@ -81,7 +85,12 @@ module Cardea
         computed_hmac = encode_hmac(OpenSSL::HMAC.digest(OpenSSL::Digest::SHA256.new, secret,
             "#{m[:USERNAME]}:#{m[:QUERY]}##{encode_extras(hmac_extras)}"))
         raise "HMAC mismatch" if computed_hmac != m[:HMAC]
-        return self.new(m[:USERNAME], CGI.parse(m[:QUERY]))
+        tk = self.new(m[:USERNAME], CGI.parse(m[:QUERY]))
+
+        now = Time.now.to_i
+        raise "Cookie is from the future" if tk.t > now + 60
+        raise "Cookie is old" if tk.t < now - 3600*24
+        return tk
       else
         raise "Invalid cookie"
       end

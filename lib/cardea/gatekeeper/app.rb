@@ -20,10 +20,12 @@ module Cardea
       set :cookie_domain, nil
       set :cookie_name, 'ca'
       set :cookie_secure, nil
+      set :cookie_max_age, 18*3600
       set :login_href, 'https://github.com/3ofcoins/cardea/'
       set :login_text, 'Configure Me, Please'
       set :odin_cookie_name, nil
       set :debug_auth, false
+      set :links, {}
 
       def request_token
         return unless request.cookies.include?(settings.cookie_name)
@@ -33,34 +35,24 @@ module Cardea
         puts "ERROR parsing cookie: #{e}"
       end
 
-      def authorize!
-        return if request_token
-        login_url = '/login'
-        if params[:return_to] && params[:return_to] != ''
-          login_url << "?return_to=#{CGI.escape(params[:return_to])}"
-        end
-        redirect url(login_url)
-      end
-
       def return_to
         return params[:return_to] if params[:return_to] && params[:return_to] != ''
         return params[:ref] if settings.odin_cookie_name && params[:ref] && params[:ref] != ''
       end
 
+      get '/login' do
+        redirect(return_to || url('/')) if request_token
+        session[:return_to] = return_to
+        haml(:login, locals: { logout: false })
+      end
+
       get '/' do
-        authorize!
-        haml :index
+        redirect url('/login') unless request_token
+        haml(:index)
       end
 
       get '/logout' do
         logout
-        redirect to('/login')
-      end
-
-      get '/login' do
-        redirect(return_to || url('/')) if request_token
-        session[:return_to] = return_to
-        haml :login
       end
 
       def cookie_parameters
@@ -68,7 +60,7 @@ module Cardea
           domain: settings.cookie_domain || ".#{request.host}",
           path: '/',
           secure: settings.cookie_secure.nil? ? request.ssl? : settings.cookie_secure,
-          httponly: true,
+          httponly: true
         }
       end
       private :cookie_parameters
@@ -78,18 +70,27 @@ module Cardea
       end
 
       def login(username, meta={})
-        return logout unless username # FIXME: show something?
+        logout "Authorization Failure" unless username # FIXME: show something?
+
         tk = Cardea.token(username, meta)
-        # TODO: expires (smart); ¿max_age?
-        response.set_cookie(settings.cookie_name, cookie_parameters.merge(value: tk.cookie(settings.cardea_secret, *hmac_extras)))
-        response.set_cookie(settings.odin_cookie_name, cookie_parameters.merge(value: tk.legacy.cookie(settings.cardea_secret, *hmac_extras))) if settings.odin_cookie_name
+        params = cookie_parameters.merge(
+          max_age: settings.cookie_max_age,
+          expires: Time.now + settings.cookie_max_age)
+        response.set_cookie(settings.cookie_name, params.merge(
+            value: tk.cookie(settings.cardea_secret, *hmac_extras)))
+        if settings.odin_cookie_name
+          response.set_cookie(settings.odin_cookie_name, params.merge(
+              value: tk.legacy.cookie(settings.cardea_secret, *hmac_extras)))
+        end
+
         redirect session.delete(:return_to) || url('/'), 303
       end
 
-      def logout
+      def logout(message=nil)
         response.delete_cookie(settings.cookie_name, cookie_parameters)
         response.delete_cookie(settings.odin_cookie_name, cookie_parameters) if settings.odin_cookie_name
         session.delete(:return_to)
+        halt haml(:login, locals: { message: message, logout: true })
       end
 
       # OmniAuth Integration
@@ -120,8 +121,7 @@ module Cardea
 
         route :get, :post, '/auth/failure' do
           # ?message=csrf_detected&strategy=google_oauth2
-          logout
-          redirect to('/login') # FIXME: login error page
+          logout "Authentication Failure"
         end
       end
 

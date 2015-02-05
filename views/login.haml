@@ -1,5 +1,18 @@
-.jumbotron
-  %p
+- if logout
+  - if message
+    %p.alert.alert-danger.distanced
+      %span.glyphicon.glyphicon-warning-sign
+      %strong Access Denied:
+      = message
+  - else
+    %p.alert.alert-success.distanced
+      %span.glyphicon.glyphicon-ok
+      %strong Logged Out.
+- else
+  %p.alert.alert-warning.distanced
+    %span.glyphicon.glyphicon-exclamation-sign
     %strong I do not recognize you!
-    Please, identify yourself, so I can let you in:
-  %a.btn.btn-primary.btn-lg.btn-block{href: url(settings.login_href)}= settings.login_text
+    Please log in to continue.
+%a.btn.btn-primary.btn-lg.btn-block{href: url(settings.login_href)}
+  %span.glyphicon.glyphicon-log-in
+  = settings.login_text
