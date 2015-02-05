@@ -49,7 +49,7 @@ module Cardea
       get '/' do
         if !request_token
           login_url = '/login'
-          login_url << '?return_to=#{CGI::escape(return_to)}' if return_to
+          login_url << "?return_to=#{CGI::escape(return_to)}" if return_to
           redirect to(login_url)
         end
         haml(:index)
