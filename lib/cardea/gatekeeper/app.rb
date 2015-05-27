@@ -45,7 +45,7 @@ module Cardea
         redirect(return_to || url('/')) if request_token
         session[:return_to] = return_to
         if session[:return_to] && settings.redirect_to_auth
-          redirect_to(settings.login_href)
+          redirect to(settings.login_href)
         else
           haml(:login, locals: { logout: false })
         end
