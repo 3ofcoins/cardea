@@ -26,6 +26,7 @@ module Cardea
       set :odin_cookie_name, nil
       set :debug_auth, false
       set :links, {}
+      set :redirect_to_auth, false
 
       def request_token
         return unless request.cookies.include?(settings.cookie_name)
@@ -43,7 +44,11 @@ module Cardea
       get '/login' do
         redirect(return_to || url('/')) if request_token
         session[:return_to] = return_to
-        haml(:login, locals: { logout: false })
+        if session[:return_to] && settings.redirect_to_auth
+          redirect_to(settings.login_href)
+        else
+          haml(:login, locals: { logout: false })
+        end
       end
 
       get '/' do
