@@ -1,4 +1,4 @@
-FROM busybox:ubuntu-14.04
+FROM busybox:musl
 MAINTAINER Maciej Pasternacki <maciej@3ofcoins.net>
 
 ADD nginx-auth-cardea /nginx-auth-cardea
