@@ -1,4 +1,4 @@
-package main
+package main // import "github.com/3ofcoins/cardea/nginx-auth-cardea"
 
 // import "flag"
 import "io/ioutil"
